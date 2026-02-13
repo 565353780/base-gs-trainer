@@ -1,5 +1,6 @@
 import torch
 
+from tqdm import trange
 from abc import ABC, abstractmethod
 
 from fused_ssim import fused_ssim
@@ -83,15 +84,18 @@ class BaseGSTrainer(ABC):
         # Report test and samples of training set
         if iteration % self.test_freq == 0:
             torch.cuda.empty_cache()
-            cameras = [self.scene[idx % len(self.scene)] for idx in range(5, 30, 5)]
 
             l1_test = 0.0
             psnr_test, ssim_test, lpips_test = 0.0, 0.0, 0.0
-            for idx, viewpoint in enumerate(cameras):
+            print('[INFO][BaseGSTrainer::logStep]')
+            print('\t start log step...')
+            for idx in trange(render_image_num):
+                viewpoint = self.scene[idx]
+
                 render_pkg = self.renderImage(viewpoint)
                 image = torch.clamp(render_pkg["render"], 0.0, 1.0)
                 gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
-                if self.logger.isValid() and (idx < render_image_num):
+                if self.logger.isValid():
                     self.logger.summary_writer.add_images("view_{}/render".format(viewpoint.image_name), image[None], global_step=iteration)
 
                     try:
@@ -127,11 +131,11 @@ class BaseGSTrainer(ABC):
                 if not is_fast:
                     lpips_test += lpips(image, gt_image, net_type='vgg').mean().double()
 
-            l1_test /= len(cameras)
-            psnr_test /= len(cameras)
-            ssim_test /= len(cameras)
+            l1_test /= render_image_num
+            psnr_test /= render_image_num
+            ssim_test /= render_image_num
             if not is_fast:
-                lpips_test /= len(cameras)
+                lpips_test /= render_image_num
             print("\n[ITER {}] Evaluating: L1 {} PSNR {}".format(iteration, l1_test, psnr_test))
             self.logger.addScalar('Eval/l1', l1_test, iteration)
             self.logger.addScalar('Eval/psnr', psnr_test, iteration)
