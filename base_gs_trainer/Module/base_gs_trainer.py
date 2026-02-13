@@ -66,7 +66,13 @@ class BaseGSTrainer(ABC):
         pass
 
     @torch.no_grad
-    def logStep(self, iteration: int, loss_dict: dict, render_image_num: int=5) -> bool:
+    def logStep(
+        self,
+        iteration: int,
+        loss_dict: dict,
+        render_image_num: int=5,
+        is_fast: bool=False,
+    ) -> bool:
         for key, value in loss_dict.items():
             self.logger.addScalar('Loss/' + key, value, iteration)
 
@@ -118,17 +124,20 @@ class BaseGSTrainer(ABC):
                 l1_test += l1_loss(image, gt_image).mean().double()
                 psnr_test += psnr(image, gt_image).mean().double()
                 ssim_test += fused_ssim(image.unsqueeze(0), gt_image.unsqueeze(0)).mean().double()
-                lpips_test += lpips(image, gt_image, net_type='vgg').mean().double()
+                if not is_fast:
+                    lpips_test += lpips(image, gt_image, net_type='vgg').mean().double()
 
+            l1_test /= len(cameras)
             psnr_test /= len(cameras)
             ssim_test /= len(cameras)
-            lpips_test /= len(cameras)
-            l1_test /= len(cameras)
+            if not is_fast:
+                lpips_test /= len(cameras)
             print("\n[ITER {}] Evaluating: L1 {} PSNR {}".format(iteration, l1_test, psnr_test))
             self.logger.addScalar('Eval/l1', l1_test, iteration)
             self.logger.addScalar('Eval/psnr', psnr_test, iteration)
             self.logger.addScalar('Eval/ssim', ssim_test, iteration)
-            self.logger.addScalar('Eval/lpips', lpips_test, iteration)
+            if not is_fast:
+                self.logger.addScalar('Eval/lpips', lpips_test, iteration)
 
             if not self.is_gt_logged:
                 self.is_gt_logged = True
