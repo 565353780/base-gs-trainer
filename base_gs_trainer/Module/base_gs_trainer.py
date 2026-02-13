@@ -1,5 +1,3 @@
-import sys
-sys.path.append('../../../base-trainer/')
 import torch
 
 from abc import ABC, abstractmethod
