@@ -1,4 +1,4 @@
-from fast_gs.Config.sh import C0, C1, C2, C3, C4
+from base_gs_trainer.Config.sh import C0, C1, C2, C3, C4
 
 
 def eval_sh(deg, sh, dirs):
