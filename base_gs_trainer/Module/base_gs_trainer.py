@@ -71,8 +71,6 @@ class BaseGSTrainer(ABC):
         self,
         iteration: int,
         loss_dict: dict,
-        render_image_num: int=5,
-        is_fast: bool=False,
     ) -> bool:
         for key, value in loss_dict.items():
             self.logger.addScalar('Loss/' + key, value, iteration)
@@ -80,71 +78,77 @@ class BaseGSTrainer(ABC):
         self.logger.addScalar('Gaussian/total_points', self.gaussians.get_xyz.shape[0], iteration)
         self.logger.addScalar('Gaussian/scale', torch.mean(self.gaussians.get_scaling).detach().clone().cpu().numpy(), iteration)
         self.logger.addScalar('Gaussian/opacity', torch.mean(self.gaussians.get_opacity).detach().clone().cpu().numpy(), iteration)
+        return True
 
-        # Report test and samples of training set
-        if iteration % self.test_freq == 0:
-            torch.cuda.empty_cache()
+    @torch.no_grad
+    def logImageStep(
+        self,
+        iteration: int,
+        render_image_num: int=5,
+        is_fast: bool=False,
+    ) -> bool:
+        torch.cuda.empty_cache()
 
-            l1_test = 0.0
-            psnr_test, ssim_test, lpips_test = 0.0, 0.0, 0.0
-            print('[INFO][BaseGSTrainer::logStep]')
-            print('\t start log step...')
-            for idx in trange(render_image_num):
-                viewpoint = self.scene[idx]
+        l1_test = 0.0
+        psnr_test, ssim_test, lpips_test = 0.0, 0.0, 0.0
+        print('[INFO][BaseGSTrainer::logImageStep]')
+        print('\t start log image step...')
+        for idx in trange(render_image_num):
+            viewpoint = self.scene[idx]
 
-                render_pkg = self.renderImage(viewpoint)
-                image = torch.clamp(render_pkg["render"], 0.0, 1.0)
-                gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
-                if self.logger.isValid():
-                    self.logger.summary_writer.add_images("view_{}/render".format(viewpoint.image_name), image[None], global_step=iteration)
+            render_pkg = self.renderImage(viewpoint)
+            image = torch.clamp(render_pkg["render"], 0.0, 1.0)
+            gt_image = torch.clamp(viewpoint.original_image.to("cuda"), 0.0, 1.0)
+            if self.logger.isValid():
+                self.logger.summary_writer.add_images("view_{}/render".format(viewpoint.image_name), image[None], global_step=iteration)
 
-                    try:
-                        depth = render_pkg["surf_depth"]
-                        norm = depth.max()
-                        depth = depth / norm
-                        depth = colormap(depth.cpu().numpy()[0], cmap='turbo')
-                        self.logger.summary_writer.add_images("view_{}/depth".format(viewpoint.image_name), depth[None], global_step=iteration)
-                    except:
-                        pass
+                try:
+                    depth = render_pkg["surf_depth"]
+                    norm = depth.max()
+                    depth = depth / norm
+                    depth = colormap(depth.cpu().numpy()[0], cmap='turbo')
+                    self.logger.summary_writer.add_images("view_{}/depth".format(viewpoint.image_name), depth[None], global_step=iteration)
+                except:
+                    pass
 
-                    try:
-                        rend_alpha = render_pkg['rend_alpha']
-                        rend_normal = render_pkg["rend_normal"] * 0.5 + 0.5
-                        surf_normal = render_pkg["surf_normal"] * 0.5 + 0.5
-                        self.logger.summary_writer.add_images("view_{}/rend_normal".format(viewpoint.image_name), rend_normal[None], global_step=iteration)
-                        self.logger.summary_writer.add_images("view_{}/surf_normal".format(viewpoint.image_name), surf_normal[None], global_step=iteration)
-                        self.logger.summary_writer.add_images("view_{}/rend_alpha".format(viewpoint.image_name), rend_alpha[None], global_step=iteration)
+                try:
+                    rend_alpha = render_pkg['rend_alpha']
+                    rend_normal = render_pkg["rend_normal"] * 0.5 + 0.5
+                    surf_normal = render_pkg["surf_normal"] * 0.5 + 0.5
+                    self.logger.summary_writer.add_images("view_{}/rend_normal".format(viewpoint.image_name), rend_normal[None], global_step=iteration)
+                    self.logger.summary_writer.add_images("view_{}/surf_normal".format(viewpoint.image_name), surf_normal[None], global_step=iteration)
+                    self.logger.summary_writer.add_images("view_{}/rend_alpha".format(viewpoint.image_name), rend_alpha[None], global_step=iteration)
 
-                        rend_dist = render_pkg["rend_dist"]
-                        rend_dist = colormap(rend_dist.cpu().numpy()[0])
-                        self.logger.summary_writer.add_images("view_{}/rend_dist".format(viewpoint.image_name), rend_dist[None], global_step=iteration)
-                    except:
-                        pass
+                    rend_dist = render_pkg["rend_dist"]
+                    rend_dist = colormap(rend_dist.cpu().numpy()[0])
+                    self.logger.summary_writer.add_images("view_{}/rend_dist".format(viewpoint.image_name), rend_dist[None], global_step=iteration)
+                except:
+                    pass
 
 
-                    if not self.is_gt_logged:
-                        self.logger.summary_writer.add_images("view_{}/GT".format(viewpoint.image_name), gt_image[None], global_step=iteration)
+                if not self.is_gt_logged:
+                    self.logger.summary_writer.add_images("view_{}/GT".format(viewpoint.image_name), gt_image[None], global_step=iteration)
 
-                l1_test += l1_loss(image, gt_image).mean().double()
-                psnr_test += psnr(image, gt_image).mean().double()
-                ssim_test += fused_ssim(image.unsqueeze(0), gt_image.unsqueeze(0)).mean().double()
-                if not is_fast:
-                    lpips_test += lpips(image, gt_image, net_type='vgg').mean().double()
-
-            l1_test /= render_image_num
-            psnr_test /= render_image_num
-            ssim_test /= render_image_num
+            l1_test += l1_loss(image, gt_image).mean().double()
+            psnr_test += psnr(image, gt_image).mean().double()
+            ssim_test += fused_ssim(image.unsqueeze(0), gt_image.unsqueeze(0)).mean().double()
             if not is_fast:
-                lpips_test /= render_image_num
-            print("\n[ITER {}] Evaluating: L1 {} PSNR {}".format(iteration, l1_test, psnr_test))
-            self.logger.addScalar('Eval/l1', l1_test, iteration)
-            self.logger.addScalar('Eval/psnr', psnr_test, iteration)
-            self.logger.addScalar('Eval/ssim', ssim_test, iteration)
-            if not is_fast:
-                self.logger.addScalar('Eval/lpips', lpips_test, iteration)
+                lpips_test += lpips(image, gt_image, net_type='vgg').mean().double()
 
-            if not self.is_gt_logged:
-                self.is_gt_logged = True
+        l1_test /= render_image_num
+        psnr_test /= render_image_num
+        ssim_test /= render_image_num
+        if not is_fast:
+            lpips_test /= render_image_num
+        print("\n[ITER {}] Evaluating: L1 {} PSNR {}".format(iteration, l1_test, psnr_test))
+        self.logger.addScalar('Eval/l1', l1_test, iteration)
+        self.logger.addScalar('Eval/psnr', psnr_test, iteration)
+        self.logger.addScalar('Eval/ssim', ssim_test, iteration)
+        if not is_fast:
+            self.logger.addScalar('Eval/lpips', lpips_test, iteration)
 
-            torch.cuda.empty_cache()
+        if not self.is_gt_logged:
+            self.is_gt_logged = True
+
+        torch.cuda.empty_cache()
         return True
