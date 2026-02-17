@@ -32,8 +32,6 @@ class GSCamera:
 
         self.world_view_transform = cam.world2cameraColmap.transpose(0, 1).cuda()
 
-        self.R = self.world_view_transform[:3, :3]
-
         # self.projection_matrix = getProjectionMatrix(self.FoVx, self.FoVy).transpose(0, 1).cuda()
         # 2. 抛弃旧的基于 FOV 的 getProjectionMatrix
         self.projection_matrix = getGSProjectionMatrix_from_intrinsics(
@@ -44,4 +42,7 @@ class GSCamera:
         self.full_proj_transform = (self.world_view_transform.unsqueeze(0).bmm(self.projection_matrix.unsqueeze(0))).squeeze(0)
 
         self.camera_center = cam.camera2worldColmap[:3, 3].cuda()
+
+        self.R = self.world_view_transform[:3, :3]
+        self.T = self.camera_center
         return
