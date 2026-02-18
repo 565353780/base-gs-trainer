@@ -39,6 +39,10 @@ class GSCameras:
                     pbar.update(1)
 
         self.cameras_extent = cameras_extent_from_list(colmap_cameras)
+
+        for i in range(n_cams):
+            self.train_cameras[i].uid = i
+
         if shuffle:
             random.shuffle(self.train_cameras)
         return
