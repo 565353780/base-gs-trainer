@@ -28,6 +28,7 @@ class GSCamera:
 
         # 图像：(H, W, 3) -> (3, H, W)，并应用 mask（若有）
         self.original_image = cam.toMaskedImage().permute(2, 0, 1).clamp(0.0, 1.0).to(device)
+        #self.original_image = cam.image.permute(2, 0, 1).clamp(0.0, 1.0).to(device)
         self.image_name = cam.image_id
 
         self.world_view_transform = cam.world2cameraColmap.transpose(0, 1).cuda()

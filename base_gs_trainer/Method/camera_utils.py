@@ -22,7 +22,7 @@ def cameras_extent_from_list(cam_list: List[Camera]):
     return diagonal * 1.1
 
 def get_cameras_spatial_extent(cameras:List[Camera]):
-    cam_centers = torch.cat([camera.pos.view(1, 3) for camera in cameras], dim=0)
+    cam_centers = torch.cat([camera.camera_center.view(1, 3) for camera in cameras], dim=0)
 
     avg_cam_center = torch.mean(cam_centers, dim=0, keepdim=True)
     dist = torch.norm(cam_centers - avg_cam_center, dim=1, keepdim=True)
