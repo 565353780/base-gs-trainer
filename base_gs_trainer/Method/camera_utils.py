@@ -13,7 +13,7 @@ def cameras_extent_from_list(cam_list: List[Camera]):
     for c in cam_list:
         pos = c.pos
         if torch.is_tensor(pos):
-            pos = pos.detach().cpu().numpy()
+            pos = pos.detach().cpu().float().numpy()
         centers.append(pos.reshape(3, 1))
     centers = np.hstack(centers)
     center = np.mean(centers, axis=1, keepdims=True)

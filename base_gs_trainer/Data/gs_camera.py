@@ -26,8 +26,17 @@ class GSCamera:
         self.image_width = cam.width
         self.image_height = cam.height
 
+        self.Fx = cam.fx
+        self.Fy = cam.fy
+        self.Cx = cam.cx
+        self.Cy = cam.cy
+
+        self.znear = 0.01
+        self.zfar = 100.0
+
         # 图像：(H, W, 3) -> (3, H, W)，并应用 mask（若有）
-        self.original_image = cam.toMaskedImage().permute(2, 0, 1).clamp(0.0, 1.0).to(device)
+        if cam.height == cam.image.shape[0] and cam.width == cam.image.shape[1]:
+            self.original_image = cam.toMaskedImage().permute(2, 0, 1).clamp(0.0, 1.0).to(device)
         #self.original_image = cam.image.permute(2, 0, 1).clamp(0.0, 1.0).to(device)
         self.image_name = cam.image_id
 
@@ -46,4 +55,6 @@ class GSCamera:
 
         self.R = self.world_view_transform[:3, :3]
         self.T = self.camera_center
+
+        self.nearest_id = []
         return

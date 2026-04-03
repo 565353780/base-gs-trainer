@@ -36,7 +36,7 @@ class ParamGroup:
 
 class BaseModelParams(object):
     def __init__(self):
-        self.sh_degree = 1
+        self.sh_degree = 3
         self._source_path = ""
         self._model_path = ""
         self._images = "masked_images"
