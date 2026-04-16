@@ -44,6 +44,8 @@ class BaseGSTrainer(ABC):
 
         self.scene = GSCameras(self.colmap_data_folder_path)
 
+        self.initGaussiansFromScene()
+
         pcd = readColmapPcd(self.colmap_data_folder_path)
         self.gaussians.create_from_pcd(pcd, self.scene.cameras_extent)
 
@@ -58,6 +60,9 @@ class BaseGSTrainer(ABC):
 
         self.is_gt_logged = False
         return
+
+    def initGaussiansFromScene(self) -> bool:
+        return True
 
     @abstractmethod
     def renderImage(self, viewpoint_cam) -> dict:
