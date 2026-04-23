@@ -35,11 +35,12 @@ class GSCamera:
         self.zfar = 100.0
 
         # 图像：(H, W, 3) -> (3, H, W)，并应用 mask（若有）
-        if cam.height == cam.image.shape[0] and cam.width == cam.image.shape[1]:
-            self.original_image = cam.toImage(
-                background_color=[255, 255, 255],
-                use_mask=True,
-            ).permute(2, 0, 1).clamp(0.0, 1.0).to(device)
+        if cam.image is not None:
+            if cam.height == cam.image.shape[0] and cam.width == cam.image.shape[1]:
+                self.original_image = cam.toImage(
+                    background_color=[255, 255, 255],
+                    use_mask=True,
+                ).permute(2, 0, 1).clamp(0.0, 1.0).to(device)
         #self.original_image = cam.image.permute(2, 0, 1).clamp(0.0, 1.0).to(device)
         self.image_name = cam.image_id
 
